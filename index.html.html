@@ -1,0 +1,1532 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#101714">
+	<title>Forsaken: The Last Shift</title>
+	<style>
+		:root { color-scheme: dark; --ink: #e8eee5; --muted: #8b9990; --lime: #c3e27c; --red: #f36d5b; --panel: rgba(13, 20, 17, .94); --line: rgba(216, 235, 217, .16); }
+		* { box-sizing: border-box; }
+		html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+		body { background: #101714; color: var(--ink); font-family: "Trebuchet MS", "Segoe UI", sans-serif; user-select: none; }
+		button { color: inherit; font: inherit; }
+		.app { height: 100%; display: grid; grid-template-rows: 64px minmax(0, 1fr); padding: 0 22px 20px; }
+		.topbar { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+		.brand { display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 800; letter-spacing: 1.8px; }
+		.brand-mark { display: grid; place-items: center; width: 31px; height: 31px; border: 1px solid #8c9c7c; color: var(--lime); font-size: 17px; transform: rotate(45deg); }
+		.brand-mark span { transform: rotate(-45deg); }
+		.brand small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 2px; }
+		.top-meta { display: flex; align-items: center; gap: 18px; color: #a6b0a7; font-size: 10px; letter-spacing: 1.4px; }
+		.live { display: flex; align-items: center; gap: 7px; }
+		.live::before { width: 7px; height: 7px; border-radius: 50%; background: #b4d873; content: ""; box-shadow: 0 0 11px #b4d873; }
+		main { position: relative; min-height: 0; margin-top: 16px; overflow: hidden; border: 1px solid rgba(210, 230, 215, .2); background: #19211c; }
+		canvas { display: block; width: 100%; height: 100%; }
+		.vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 45%, rgba(5, 9, 7, .58) 100%); }
+		.hud { position: absolute; inset: 0; display: none; pointer-events: none; }
+		.hud.active { display: block; }
+		.hud-top { position: absolute; top: 20px; left: 22px; right: 22px; display: flex; justify-content: space-between; align-items: flex-start; }
+		.objective-box, .status-box { border-left: 2px solid var(--lime); padding: 7px 12px; background: rgba(10, 15, 12, .72); backdrop-filter: blur(7px); }
+		.eyebrow { color: #9ca99b; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
+		.timer-display { margin-top: 3px; color: var(--lime); font-size: 27px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 2px; line-height: 1; }
+		.generator-count { margin-top: 5px; color: #c2cbbb; font-size: 10px; letter-spacing: .8px; }
+		.cash-box { display: none; padding: 8px 12px; background: rgba(10, 15, 12, .72); color: var(--lime); font-size: 13px; font-weight: 800; letter-spacing: 1px; }
+		.status-box { border-left-color: var(--red); text-align: right; }
+		.status-box .eyebrow { color: #d1877e; }
+		.danger-meter { width: 126px; height: 4px; margin-top: 8px; background: #39413a; }
+		.danger-fill { width: 0; height: 100%; background: var(--red); transition: width .2s; }
+		.toast { position: absolute; top: 86px; left: 50%; padding: 11px 18px; border: 1px solid rgba(195, 226, 124, .5); background: rgba(10, 15, 12, .92); color: var(--lime); font-size: 12px; font-weight: 900; letter-spacing: 1px; opacity: 0; pointer-events: none; transform: translate(-50%, -8px); transition: opacity .2s, transform .2s; white-space: nowrap; }
+		.toast.show { opacity: 1; transform: translate(-50%, 0); }
+		.ability-panel { position: absolute; bottom: 20px; left: 50%; width: min(230px, 34vw); padding: 9px 11px; background: rgba(10, 15, 12, .82); opacity: 0; pointer-events: none; transform: translateX(-50%); transition: opacity .15s; }
+		.ability-panel.show { opacity: 1; }
+		.ability-row + .ability-row { margin-top: 8px; }
+		.ability-label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; color: #a9b3a8; font-size: 9px; letter-spacing: 1px; }
+		.ability-title { display: inline-flex; align-items: center; gap: 6px; }
+		.ability-icon { width: 15px; height: 15px; color: var(--lime); flex: 0 0 auto; }
+		.ability-icon[hidden] { display: none; }
+		.punch-icon { width: 15px; height: 15px; color: #ff9a87; flex: 0 0 auto; }
+		.punch-icon-stack { position: relative; display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; flex: 0 0 auto; }
+		.punch-lock-icon { position: absolute; right: -3px; bottom: -2px; width: 10px; height: 10px; padding: 1px; border-radius: 50%; background: #19211c; color: var(--lime); }
+		.punch-lock-icon[hidden] { display: none; }
+		.ability-status { color: var(--lime); font-weight: 800; text-align: right; }
+		.ability-track { height: 5px; overflow: hidden; background: #354038; }
+		.ability-fill { width: 100%; height: 100%; background: var(--lime); transition: width .1s linear; }
+		.ability-fill.cooldown { background: var(--red); }
+		.bottom-hud { position: absolute; right: 22px; bottom: 20px; left: 22px; display: flex; align-items: flex-end; justify-content: space-between; }
+		.resource-bars { display: grid; gap: 7px; }
+		.stamina-wrap { width: min(220px, 34vw); padding: 9px 11px; background: rgba(10, 15, 12, .72); }
+		.bar-label { display: flex; justify-content: space-between; margin-bottom: 6px; color: #a9b3a8; font-size: 9px; letter-spacing: 1.5px; }
+		.health-wrap { width: min(220px, 34vw); padding: 9px 11px; background: rgba(10, 15, 12, .72); }
+		.health-track { height: 5px; background: #354038; }
+		.health-fill { width: 100%; height: 100%; background: var(--red); transition: width .1s linear; }
+		.stamina-track { height: 5px; background: #354038; }
+		.stamina-fill { width: 100%; height: 100%; background: var(--lime); transition: width .1s linear; }
+		.prompt { min-height: 31px; padding: 8px 12px; background: rgba(10, 15, 12, .78); color: #d6dfd3; font-size: 11px; letter-spacing: .6px; opacity: 0; transition: opacity .15s; }
+		.prompt.show { opacity: 1; }
+		.prompt kbd { display: inline-grid; place-items: center; min-width: 19px; height: 19px; margin-right: 5px; border: 1px solid #778276; color: var(--lime); font: inherit; }
+		.touch-controls { display: none; pointer-events: none; }
+		.overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(7, 12, 9, .44); }
+		.overlay.hidden { display: none; }
+		.killer-intro { position: absolute; z-index: 3; inset: 0; display: none; place-items: center; padding: 24px; background: radial-gradient(ellipse at center, rgba(52, 12, 10, .78), rgba(7, 8, 8, .97) 75%); text-align: center; }
+		.killer-intro.active { display: grid; animation: killer-fade-in .45s both; }
+		.killer-intro-content { width: min(520px, 100%); animation: killer-title-in .7s .15s both; }
+		.killer-intro .chapter { color: #ff8875; }
+		.killer-intro h2 { margin: 18px 0 8px; color: #f36d5b; font-family: Impact, "Arial Narrow", sans-serif; font-size: clamp(58px, 12vw, 104px); font-weight: 500; line-height: .85; letter-spacing: 3px; text-shadow: 0 0 34px rgba(243, 70, 53, .42); }
+		.killer-intro-copy { margin: 18px auto 0; color: #d3c7c2; font-size: 13px; letter-spacing: 1.4px; line-height: 1.7; }
+		.killer-intro .start-button { max-width: 260px; margin-top: 28px; background: #e85d4d; color: #1b1110; }
+		.killer-intro .start-button:hover { background: #ff806e; }
+		@keyframes killer-fade-in { from { opacity: 0; } to { opacity: 1; } }
+		@keyframes killer-title-in { from { opacity: 0; transform: scale(1.08); } to { opacity: 1; transform: scale(1); } }
+		.intro { width: min(460px, 100%); padding: 30px 34px 28px; border: 1px solid rgba(206, 224, 200, .32); background: var(--panel); box-shadow: 0 22px 80px rgba(0, 0, 0, .42); animation: rise .55s both; }
+		.intro.menu-home { width: min(680px, 100%); padding: 42px 50px 38px; }
+		.intro.menu-home h1 { font-size: clamp(48px, 8vw, 70px); }
+		.menu-home .intro-copy { max-width: 520px; font-size: 15px; }
+		@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+		.chapter { color: var(--lime); font-size: 10px; letter-spacing: 2.4px; }
+		h1 { margin: 14px 0 8px; font-family: Impact, "Arial Narrow", sans-serif; font-size: clamp(38px, 7vw, 57px); font-weight: 500; line-height: .94; letter-spacing: 1px; }
+		h1 span { color: var(--red); }
+		.intro-copy { max-width: 340px; margin: 16px 0 23px; color: #aab5aa; font-size: 13px; line-height: 1.6; }
+		.mission { display: flex; gap: 14px; padding: 13px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+		.mission-symbol { color: var(--lime); font-size: 19px; }
+		.mission b { display: block; margin-bottom: 4px; font-size: 11px; letter-spacing: 1px; }
+		.mission small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+		.start-button { width: 100%; height: 47px; margin-top: 21px; border: 0; background: var(--lime); color: #172018; cursor: pointer; font-size: 11px; font-weight: 900; letter-spacing: 1.6px; transition: background .15s, transform .15s; }
+		.start-button:hover { background: #d5f196; transform: translateY(-1px); }
+		.secondary-button { width: 100%; height: 43px; margin-top: 10px; border: 1px solid rgba(206, 224, 200, .32); background: transparent; color: var(--ink); cursor: pointer; font-size: 10px; font-weight: 800; letter-spacing: 1.6px; transition: background .15s, border-color .15s; }
+		.secondary-button:hover { border-color: var(--lime); background: rgba(195, 226, 124, .08); }
+		.menu-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+		.menu-actions .start-button { grid-column: 1 / -1; margin-top: 21px; }
+		.menu-actions .secondary-button { margin-top: 0; }
+		.settings-panel[hidden] { display: none; }
+		.menu-panel[hidden], .result-panel[hidden] { display: none; }
+		.settings-list { margin: 20px 0 0; border-top: 1px solid var(--line); }
+		.settings-row { display: flex; justify-content: space-between; gap: 18px; padding: 12px 0; border-bottom: 1px solid var(--line); color: #aab5aa; font-size: 12px; }
+		.settings-row strong { color: var(--lime); text-align: right; font-size: 11px; }
+		.shop-item { margin-top: 20px; padding: 16px; border: 1px solid var(--line); background: rgba(255, 255, 255, .02); }
+		.shop-item h2 { margin: 0 0 7px; font-family: Impact, "Arial Narrow", sans-serif; font-size: 25px; font-weight: 500; letter-spacing: .5px; }
+		.shop-item p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+		.shop-balance { margin-top: 16px; color: var(--lime); font-size: 12px; font-weight: 800; letter-spacing: 1px; }
+		.gear-role { margin-top: 12px; }
+		.gear-role .secondary-button { margin-top: 8px; }
+		.gear-divider { height: 1px; margin: 18px 0 8px; border: 0; background: var(--line); }
+		.sword-status { margin-top: 6px; color: var(--muted); font-size: 10px; }
+		.role-ability-button { display: none; }
+		.role-ability-button.show { display: block; }
+		.controls-note { margin: 13px 0 0; color: #819087; text-align: center; font-size: 9px; letter-spacing: .5px; }
+		.end-title { margin: 12px 0 5px; font-family: Impact, "Arial Narrow", sans-serif; font-size: 46px; font-weight: 500; }
+		@media (max-width: 600px) {
+			.app { grid-template-rows: 55px minmax(0, 1fr); padding: 0 9px 9px; }
+			.topbar { padding: 0 5px; }
+			.top-meta { gap: 10px; font-size: 8px; }
+			.top-meta .build { display: none; }
+			main { margin-top: 9px; }
+			.hud-top { top: 10px; left: 10px; right: 10px; }
+			.objective-box, .status-box { padding: 6px 8px; }
+			.timer-display { font-size: 23px; }
+			.generator-count { font-size: 9px; }
+			.cash-box { padding: 7px 8px; font-size: 11px; }
+			.danger-meter { width: 88px; }
+			.bottom-hud { right: 10px; bottom: 10px; left: 10px; }
+			.stamina-wrap { width: 135px; }
+			.health-wrap { width: 135px; }
+			.ability-panel { bottom: 140px; left: 10px; width: min(165px, 42vw); padding: 7px 8px; transform: none; }
+			.ability-label { font-size: 8px; }
+			.touch-controls { position: absolute; right: 17px; bottom: 65px; display: flex; gap: 9px; align-items: end; pointer-events: auto; }
+			.touch-controls button { width: 54px; height: 54px; border: 1px solid rgba(225, 237, 218, .48); border-radius: 50%; background: rgba(13, 20, 17, .72); color: var(--ink); touch-action: none; }
+			.touch-controls button:active { background: rgba(195, 226, 124, .32); }
+			.touch-controls .action { width: 62px; height: 62px; border-color: var(--lime); color: var(--lime); font-size: 10px; font-weight: 800; }
+			.touch-controls .role-ability-button { width: 62px; height: 62px; border-color: var(--red); color: #ff9a87; font-size: 10px; font-weight: 800; }
+			.prompt { max-width: 160px; text-align: right; }
+			.intro { max-height: 100%; overflow-y: auto; padding: 25px 23px 21px; }
+			.intro.menu-home { width: 100%; padding: 25px 23px 21px; }
+			.menu-home .intro-copy { font-size: 12px; }
+			.intro-copy { font-size: 12px; }
+		}
+	</style>
+</head>
+<body>
+	<div class="app">
+		<header class="topbar">
+			<div class="brand"><div class="brand-mark"><span>✦</span></div><div>AFTERLIGHT<small>ASYMMETRICAL SURVIVAL</small></div></div>
+			<div class="top-meta"><span class="build">FIELD TEST 01</span><span class="live">SINGLE PLAYER</span></div>
+		</header>
+		<main>
+			<canvas id="game" aria-label="Top-down survival horror game"></canvas>
+			<div class="vignette"></div>
+			<section class="hud" id="hud" aria-live="polite">
+				<div class="hud-top">
+					<div class="objective-box"><div class="eyebrow" id="mapName">Survive for</div><div class="timer-display" id="timerDisplay">01:00</div><div class="generator-count">GENERATORS <span id="generatorCount">0 / 3</span></div></div>
+					<div class="cash-box" id="cashDisplay">$0</div>
+					<div class="status-box"><div class="eyebrow" id="threatText">Threat nearby</div><div class="danger-meter"><div class="danger-fill" id="dangerFill"></div></div></div>
+				</div>
+				<div class="toast" id="generatorToast" role="status" aria-live="polite"></div>
+				<div class="ability-panel" id="abilityPanel" aria-live="polite">
+					<div class="ability-row">
+						<div class="ability-label">
+							<span class="ability-title">
+								<svg class="ability-icon" id="swordAbilityIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 4 6 6L9 21l-5 1 1-5L17 5"/><path d="m12 6 6 6M4 17l3 3"/></svg>
+								<svg class="ability-icon" id="blockAbilityIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg>
+								<svg class="ability-icon" id="doctorAbilityIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M12 3v18M3 12h18"/></svg>
+								<svg class="ability-icon" id="trapperAbilityIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M4 20 20 4M6 4l14 14M12 2v4M2 12h4M18 12h4M12 18v4"/><circle cx="12" cy="12" r="3"/></svg>
+								<span id="abilityName">ABILITY</span>
+							</span>
+							<span class="ability-status" id="abilityStatus"></span>
+						</div>
+						<div class="ability-track"><div class="ability-fill" id="abilityFill"></div></div>
+					</div>
+					<div class="ability-row" id="punchAbilityRow" hidden>
+						<div class="ability-label">
+							<span class="ability-title">
+								<span class="punch-icon-stack">
+									<svg class="punch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 11V6a1.5 1.5 0 0 1 3 0v4-6a1.5 1.5 0 0 1 3 0v6-5a1.5 1.5 0 0 1 3 0v6-3a1.5 1.5 0 0 1 3 0v7c0 4-2.5 7-7 7h-1c-2 0-3.5-.8-4.8-2.4L3 15a1.7 1.7 0 0 1 2.5-2.2L7 14"/></svg>
+									<svg class="punch-lock-icon" id="punchLockIcon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="7" height="5.5" rx="1"/><path d="M4 5V3.5a2 2 0 0 1 4 0V5"/></svg>
+								</span>
+								<span>PUNCH (E)</span>
+							</span>
+							<span class="ability-status" id="punchStatus"></span>
+						</div>
+						<div class="ability-track"><div class="ability-fill" id="punchFill"></div></div>
+					</div>
+				</div>
+				<div class="touch-controls" id="touchControls"><button id="moveButton" aria-label="Move">MOVE</button><button class="action" id="actionButton" aria-label="Repair generator or punch">USE</button><button class="role-ability-button" id="swordButton" aria-label="Stun killer">SWORD</button></div>
+				<div class="bottom-hud">
+					<div class="resource-bars">
+						<div class="health-wrap"><div class="bar-label"><span id="healthLabel">HEALTH</span><span id="healthValue">100 / 100 HP</span></div><div class="health-track"><div class="health-fill" id="healthFill"></div></div></div>
+						<div class="stamina-wrap"><div class="bar-label"><span id="staminaLabel">STAMINA</span><span id="staminaValue">100%</span></div><div class="stamina-track"><div class="stamina-fill" id="staminaFill"></div></div></div>
+					</div>
+					<div class="prompt" id="prompt"><kbd>E</kbd><span id="promptText">Hold to repair generator</span></div>
+				</div>
+			</section>
+			<div class="overlay" id="overlay">
+				<div class="intro menu-home" id="introPanel">
+					<div class="menu-panel" id="mainMenuPanel">
+						<div class="chapter">AFTERLIGHT // SURVIVAL MODE</div>
+						<h1>THE LAST<br><span>SHIFT</span></h1>
+						<p class="intro-copy">Team up with two CPU survivors, or take your chance at becoming the killer and hunt them down.</p>
+						<div class="mission"><div class="mission-symbol">⌁</div><div><b>TONIGHT'S OBJECTIVE</b><small>Survive for one minute. Generators reward $3 each.</small></div></div>
+						<div class="mission"><div class="mission-symbol">%</div><div><b>KILLER CHANCE</b><small id="killerChanceDisplay">10% · +2% per win</small></div></div>
+						<div class="menu-actions">
+							<button class="start-button" id="startButton">START&nbsp; →</button>
+							<button class="secondary-button" id="shopButton">SHOP</button>
+							<button class="secondary-button" id="gearButton">GEAR</button>
+							<button class="secondary-button" id="settingsButton">SETTINGS</button>
+						</div>
+						<p class="controls-note">WASD / ARROWS TO MOVE &nbsp; · &nbsp; SHIFT TO SPRINT &nbsp; · &nbsp; KILLER ATTACKS AUTOMATICALLY UP CLOSE</p>
+					</div>
+					<div class="menu-panel" id="shopPanel" hidden>
+						<div class="chapter">AFTERLIGHT // SHOP</div>
+						<h1>SHOP</h1>
+						<p class="intro-copy">Spend generator cash to unlock new survivor roles.</p>
+						<div class="shop-balance">CASH: <span id="shopCash">$0</span></div>
+						<div class="shop-item">
+							<h2>DOCTOR ROLE</h2>
+							<p>Heal a CPU survivor in an adjacent space directly beside you (not diagonally). Press Q to restore up to 30 HP. Cooldown: 10 seconds.</p>
+							<button class="secondary-button" id="buyDoctorButton">UNLOCK — $10</button>
+							<p class="controls-note" id="doctorShopMessage" role="status"></p>
+						</div>
+						<div class="shop-item">
+							<h2>SWORD ROLE</h2>
+							<p>Unlock the sword-wielding survivor. Get close to the killer and press Q to stun them briefly. Each stun earns $5. Cooldown: 18 seconds.</p>
+							<button class="secondary-button" id="buySwordButton">UNLOCK — $15</button>
+							<p class="controls-note" id="shopMessage" role="status"></p>
+						</div>
+						<div class="shop-item">
+							<h2>BLOCK ROLE</h2>
+							<p>Fight bare-handed. Press Q to block for 2 seconds (10-second cooldown). Blocking an attack unlocks one punch on E; each punch stun earns $5. Punches have no cooldown.</p>
+							<button class="secondary-button" id="buyBlockButton">UNLOCK — $30</button>
+							<p class="controls-note" id="blockShopMessage" role="status"></p>
+						</div>
+						<div class="shop-item">
+							<h2>TRAPPER ROLE</h2>
+							<p>Place one trap at your position with Q. The CPU killer is stunned for 3 seconds when stepping on it. After it triggers, wait 10 seconds before placing another.</p>
+							<button class="secondary-button" id="buyTrapperButton">UNLOCK — $30</button>
+							<p class="controls-note" id="trapperShopMessage" role="status"></p>
+						</div>
+						<button class="secondary-button" id="shopBackButton">BACK TO MENU</button>
+					</div>
+					<div class="menu-panel" id="gearPanel" hidden>
+						<div class="chapter">AFTERLIGHT // LOADOUT</div>
+						<h1>GEAR</h1>
+						<p class="intro-copy">Choose your survivor role for the next round.</p>
+						<div class="gear-role">
+							<div class="settings-row"><span>Normal</span><strong>FREE STARTER</strong></div>
+							<div class="sword-status" id="normalRoleStatus">Equipped</div>
+							<button class="secondary-button" id="equipNormalButton">EQUIP NORMAL</button>
+						</div>
+						<div class="gear-role" id="gearDoctorRole">
+							<div class="settings-row"><span>Doctor</span><strong>HEAL CPU SURVIVORS (Q)</strong></div>
+							<div class="sword-status" id="doctorRoleStatus">Locked — $10 in shop</div>
+							<button class="secondary-button" id="equipDoctorButton">UNLOCK IN SHOP</button>
+						</div>
+						<div class="gear-role" id="gearSwordRole">
+							<div class="settings-row"><span>Sword</span><strong>STUN THE KILLER</strong></div>
+							<div class="sword-status" id="swordRoleStatus">Locked — $15 in shop</div>
+							<button class="secondary-button" id="equipSwordButton">UNLOCK IN SHOP</button>
+						</div>
+						<div class="gear-role" id="gearBlockRole">
+							<div class="settings-row"><span>Block</span><strong>BLOCK &amp; PUNCH</strong></div>
+							<div class="sword-status" id="blockRoleStatus">Locked — $30 in shop</div>
+							<button class="secondary-button" id="equipBlockButton">UNLOCK IN SHOP</button>
+						</div>
+						<div class="gear-role" id="gearTrapperRole">
+							<div class="settings-row"><span>Trapper</span><strong>TRAP CPU KILLER (Q)</strong></div>
+							<div class="sword-status" id="trapperRoleStatus">Locked — $30 in shop</div>
+							<button class="secondary-button" id="equipTrapperButton">UNLOCK IN SHOP</button>
+						</div>
+						<hr class="gear-divider">
+						<button class="secondary-button" id="gearBackButton">BACK TO MENU</button>
+					</div>
+					<div class="menu-panel settings-panel" id="settingsPanel" hidden>
+						<div class="chapter">AFTERLIGHT // OPTIONS</div>
+						<h1>SETTINGS</h1>
+						<p class="intro-copy">Controls, generator repairs, and survival objective.</p>
+						<div class="settings-list">
+							<div class="settings-row"><span>Move</span><strong>WASD / ARROW KEYS</strong></div>
+							<div class="settings-row"><span>Sprint</span><strong>HOLD SHIFT · CPU KILLER SPRINTS WITH STAMINA</strong></div>
+							<div class="settings-row"><span>Mobile</span><strong>DRAG MOVE BUTTON</strong></div>
+							<div class="settings-row"><span>Repair generator</span><strong>HOLD E / USE</strong></div>
+							<div class="settings-row"><span>Killer attack</span><strong>AUTOMATIC WHEN NEAR SURVIVOR · 50 HP/SEC</strong></div>
+							<div class="settings-row"><span>Sword stun</span><strong>Q / ROLE BUTTON</strong></div>
+							<div class="settings-row"><span>Block role</span><strong>Q: BLOCK 2 SEC / 10 SEC COOLDOWN</strong></div>
+							<div class="settings-row"><span>Block punch</span><strong>BLOCK AN ATTACK, THEN PRESS E</strong></div>
+							<div class="settings-row"><span>Doctor heal</span><strong>Q · 30 HP · 10 SEC COOLDOWN · ADJACENT CPU</strong></div>
+							<div class="settings-row"><span>Trapper</span><strong>Q: PLACE ONE TRAP · STUN 3 SEC · 10 SEC COOLDOWN AFTER TRIGGER</strong></div>
+							<div class="settings-row"><span>Survivor team</span><strong>2 CPU TEAMMATES</strong></div>
+							<div class="settings-row"><span>CPU role chances</span><strong>NORMAL 35% · SWORD 20% · BLOCK 5% · DOCTOR 30% · TRAPPER 10%</strong></div>
+							<div class="settings-row"><span>Reward</span><strong>$3 PER GENERATOR</strong></div>
+							<div class="settings-row"><span>Win condition</span><strong>SURVIVE 01:00</strong></div>
+						</div>
+						<button class="secondary-button" id="backButton">BACK TO MENU</button>
+					</div>
+					<div class="result-panel" id="resultPanel" hidden></div>
+				</div>
+			</div>
+			<div class="killer-intro" id="killerIntro" aria-live="assertive">
+				<div class="killer-intro-content">
+					<div class="chapter">AFTERLIGHT // THE HUNT</div>
+					<h2>YOU ARE<br>THE KILLER</h2>
+					<p class="killer-intro-copy">The survivors are out there.<br>Hunt them down before the shift ends.</p>
+					<button class="start-button" id="beginHuntButton">BEGIN THE HUNT&nbsp; →</button>
+				</div>
+			</div>
+		</main>
+	</div>
+	<script>
+		(() => {
+			const canvas = document.getElementById('game');
+			const ctx = canvas.getContext('2d');
+			const hud = document.getElementById('hud');
+			const overlay = document.getElementById('overlay');
+			const killerIntro = document.getElementById('killerIntro');
+			let killerIntroTimeout = 0;
+			const timerDisplay = document.getElementById('timerDisplay');
+			const mapName = document.getElementById('mapName');
+			const healthFill = document.getElementById('healthFill');
+			const healthValue = document.getElementById('healthValue');
+			const healthLabel = document.getElementById('healthLabel');
+			const staminaFill = document.getElementById('staminaFill');
+			const staminaValue = document.getElementById('staminaValue');
+			const staminaLabel = document.getElementById('staminaLabel');
+			const dangerFill = document.getElementById('dangerFill');
+			const threatText = document.getElementById('threatText');
+			const generatorCount = document.getElementById('generatorCount');
+			const cashDisplay = document.getElementById('cashDisplay');
+			const generatorToast = document.getElementById('generatorToast');
+			const prompt = document.getElementById('prompt');
+			const promptText = document.getElementById('promptText');
+			const roleAbilityButton = document.getElementById('swordButton');
+			const abilityPanel = document.getElementById('abilityPanel');
+			const swordAbilityIcon = document.getElementById('swordAbilityIcon');
+			const blockAbilityIcon = document.getElementById('blockAbilityIcon');
+			const doctorAbilityIcon = document.getElementById('doctorAbilityIcon');
+			const trapperAbilityIcon = document.getElementById('trapperAbilityIcon');
+			const abilityName = document.getElementById('abilityName');
+			const abilityStatus = document.getElementById('abilityStatus');
+			const abilityFill = document.getElementById('abilityFill');
+			const punchAbilityRow = document.getElementById('punchAbilityRow');
+			const punchLockIcon = document.getElementById('punchLockIcon');
+			const punchStatus = document.getElementById('punchStatus');
+			const punchFill = document.getElementById('punchFill');
+			const tile = 64;
+			const world = { width: 28 * tile, height: 18 * tile };
+			const swordPrice = 15;
+			const blockPrice = 30;
+			const doctorPrice = 10;
+			const trapperPrice = 30;
+			const generators = [
+				{ x: 4.5 * tile, y: 3.5 * tile, progress: 0, completed: false },
+				{ x: 14.2 * tile, y: 4.2 * tile, progress: 0, completed: false },
+				{ x: 22.5 * tile, y: 14 * tile, progress: 0, completed: false }
+			];
+			const maps = [
+				{
+					name: 'NORTH WING',
+					floor: ['#29312b', '#252d28', 'rgba(176, 185, 155, .12)'],
+					blocks: [
+						[5, 2, 1, 3], [8, 5, 2, 1], [10, 2, 1, 4], [12, 7, 3, 1], [16, 2, 1, 3],
+						[18, 4, 2, 1], [20, 2, 1, 4], [3, 7, 3, 1], [7, 8, 1, 3], [10, 10, 3, 1],
+						[14, 9, 1, 4], [17, 8, 3, 1], [21, 9, 1, 3], [4, 13, 2, 1], [9, 14, 3, 1],
+						[16, 14, 2, 1], [24, 4, 2, 1], [24, 11, 2, 1]
+					]
+				},
+				{
+					name: 'STORAGE HALL',
+					floor: ['#302d27', '#29261f', 'rgba(205, 166, 112, .14)'],
+					blocks: [
+						[2, 5, 3, 1], [7, 2, 1, 4], [9, 6, 3, 1], [12, 3, 1, 3], [16, 3, 1, 2],
+						[18, 5, 3, 1], [22, 2, 1, 4], [3, 9, 3, 1], [7, 10, 1, 3], [10, 10, 3, 1],
+						[14, 8, 2, 1], [16, 11, 1, 3], [19, 9, 3, 1], [23, 10, 1, 3], [4, 14, 2, 1],
+						[9, 15, 3, 1], [15, 14, 3, 1], [20, 15, 2, 1]
+					]
+				},
+				{
+					name: 'EAST YARD',
+					floor: ['#263033', '#222a2c', 'rgba(132, 184, 181, .15)'],
+					blocks: [
+						[1, 6, 2, 1], [6, 6, 1, 3], [9, 3, 3, 1], [12, 2, 1, 3], [17, 3, 2, 1],
+						[20, 6, 1, 3], [22, 8, 3, 1], [2, 10, 3, 1], [7, 12, 2, 1], [11, 10, 1, 3],
+						[15, 9, 3, 1], [19, 12, 2, 1], [24, 13, 1, 2], [4, 15, 3, 1], [9, 15, 2, 1],
+						[14, 14, 2, 1], [18, 15, 3, 1], [25, 3, 1, 3]
+					]
+				}
+			];
+			let blocks = [];
+			let currentMapIndex = -1;
+			let mapShuffleBag = [];
+			const player = { x: 2.2 * tile, y: 9 * tile, radius: 15, stamina: 100, faceX: 1, faceY: 0 };
+			const hunter = { x: 13.5 * tile, y: 8.5 * tile, radius: 20, alert: 0, bob: 0, stamina: 100, sprinting: false };
+			const cpuSurvivors = [
+				{ x: 4 * tile, y: 9 * tile, radius: 15, health: 100, bob: 0, path: [], pathIndex: 0, pathTimer: 0, patrolIndex: 0, role: 'normal', stunCooldown: 0, blockCooldown: 0, blockRemaining: 0, punchReady: false, trapCooldown: 0, trap: null, healCooldown: 0 },
+				{ x: 5 * tile, y: 9 * tile, radius: 15, health: 100, bob: 0, path: [], pathIndex: 0, pathTimer: 0, patrolIndex: 1, role: 'normal', stunCooldown: 0, blockCooldown: 0, blockRemaining: 0, punchReady: false, trapCooldown: 0, trap: null, healCooldown: 0 }
+			];
+			let camera = { x: 0, y: 0 };
+			let running = false;
+			let ended = false;
+			let lastTime = 0;
+			let gameTime = 0;
+			let remainingTime = 60;
+			let cash = 0;
+			let runEarnings = 0;
+			let killerChance = 10;
+			let health = 100;
+			let doctorHealCooldownRemaining = 0;
+			let trapCooldownRemaining = 0;
+			let activeTrap = null;
+			let roundRole = 'survivor';
+			let playerStunRemaining = 0;
+			let equippedRole = 'normal';
+			const ownedRoles = new Set(['normal']);
+			let actionDown = false;
+			let blockRemaining = 0;
+			let blockCooldownRemaining = 0;
+			let blockHasBlockedAttack = false;
+			let blockPunchReady = false;
+			let toastTimer = 0;
+			let hunterStunRemaining = 0;
+			let stunCooldownRemaining = 0;
+			const keys = new Set();
+			const movePointer = { active: false, x: 0, y: 0, originX: 0, originY: 0 };
+
+			function resize() {
+				const rect = canvas.getBoundingClientRect();
+				const dpr = Math.min(window.devicePixelRatio || 1, 2);
+				canvas.width = Math.round(rect.width * dpr);
+				canvas.height = Math.round(rect.height * dpr);
+				ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+				draw();
+			}
+
+			function circleRectCollision(x, y, radius, rect) {
+				const nearestX = Math.max(rect.x, Math.min(x, rect.x + rect.w));
+				const nearestY = Math.max(rect.y, Math.min(y, rect.y + rect.h));
+				const dx = x - nearestX;
+				const dy = y - nearestY;
+				return dx * dx + dy * dy < radius * radius;
+			}
+
+			function moveEntity(entity, dx, dy) {
+				const nextX = Math.max(entity.radius, Math.min(world.width - entity.radius, entity.x + dx));
+				if (!blocks.some(block => circleRectCollision(nextX, entity.y, entity.radius, block))) entity.x = nextX;
+				const nextY = Math.max(entity.radius, Math.min(world.height - entity.radius, entity.y + dy));
+				if (!blocks.some(block => circleRectCollision(entity.x, nextY, entity.radius, block))) entity.y = nextY;
+			}
+
+			function separateFromEntity(entity, other, padding = 3) {
+				let dx = entity.x - other.x;
+				let dy = entity.y - other.y;
+				let distance = Math.hypot(dx, dy);
+				const minDistance = entity.radius + other.radius + padding;
+				if (distance >= minDistance) return;
+				if (distance < .001) {
+					dx = 1;
+					dy = 0;
+					distance = 1;
+				}
+				const awayX = dx / distance;
+				const awayY = dy / distance;
+				const push = minDistance - distance + 1;
+				const directions = [
+					[awayX, awayY],
+					[Math.sign(awayX), 0],
+					[0, Math.sign(awayY)],
+					[awayY, -awayX],
+					[-awayY, awayX],
+					[-Math.sign(awayX), 0],
+					[0, -Math.sign(awayY)]
+				].filter(([x, y]) => x || y);
+				directions.sort((a, b) => b[0] * awayX + b[1] * awayY - (a[0] * awayX + a[1] * awayY));
+				for (const [directionX, directionY] of directions) {
+					const candidateX = Math.max(entity.radius, Math.min(world.width - entity.radius, entity.x + directionX * push));
+					const candidateY = Math.max(entity.radius, Math.min(world.height - entity.radius, entity.y + directionY * push));
+					if (Math.hypot(candidateX - other.x, candidateY - other.y) < minDistance) continue;
+					if (blocks.some(block => circleRectCollision(candidateX, candidateY, entity.radius, block))) continue;
+					entity.x = candidateX;
+					entity.y = candidateY;
+					return;
+				}
+			}
+
+			const pathCellSize = tile / 4;
+			const pathColumns = world.width / pathCellSize;
+			const pathRows = world.height / pathCellSize;
+			let pathNodes = [];
+			let pathNodeAt = new Int32Array(0);
+
+			function rebuildPathGraph() {
+				pathNodes = [];
+				pathNodeAt = new Int32Array(pathColumns * pathRows).fill(-1);
+				for (let row = 0; row < pathRows; row++) {
+					for (let column = 0; column < pathColumns; column++) {
+						const x = column * pathCellSize + pathCellSize / 2;
+						const y = row * pathCellSize + pathCellSize / 2;
+						if (blocks.some(block => circleRectCollision(x, y, hunter.radius, block))) continue;
+						const index = pathNodes.length;
+						pathNodes.push({ x, y, neighbors: [] });
+						pathNodeAt[row * pathColumns + column] = index;
+					}
+				}
+				for (let row = 0; row < pathRows; row++) {
+					for (let column = 0; column < pathColumns; column++) {
+						const index = pathNodeAt[row * pathColumns + column];
+						if (index < 0) continue;
+						for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+							const nextColumn = column + dx;
+							const nextRow = row + dy;
+							if (nextColumn < 0 || nextColumn >= pathColumns || nextRow < 0 || nextRow >= pathRows) continue;
+							const neighbor = pathNodeAt[nextRow * pathColumns + nextColumn];
+							if (neighbor >= 0) pathNodes[index].neighbors.push(neighbor);
+						}
+					}
+				}
+			}
+
+			function selectRandomMap() {
+				if (mapShuffleBag.length === 0) {
+					mapShuffleBag = maps.map((_, index) => index).filter(index => index !== currentMapIndex);
+					for (let i = mapShuffleBag.length - 1; i > 0; i--) {
+						const swapIndex = Math.floor(Math.random() * (i + 1));
+						[mapShuffleBag[i], mapShuffleBag[swapIndex]] = [mapShuffleBag[swapIndex], mapShuffleBag[i]];
+					}
+				}
+				currentMapIndex = mapShuffleBag.pop();
+				const map = maps[currentMapIndex];
+				blocks = map.blocks.map(([x, y, w, h]) => ({ x: x * tile, y: y * tile, w: w * tile, h: h * tile }));
+				mapName.textContent = map.name;
+				rebuildPathGraph();
+			}
+
+			function nearestPathNode(entity) {
+				let nearest = -1;
+				let nearestDistance = Infinity;
+				for (let i = 0; i < pathNodes.length; i++) {
+					const node = pathNodes[i];
+					const distance = (node.x - entity.x) ** 2 + (node.y - entity.y) ** 2;
+					if (distance < nearestDistance) { nearest = i; nearestDistance = distance; }
+				}
+				return nearest;
+			}
+
+			function findEntityPath(entity, target) {
+				const start = nearestPathNode(entity);
+				const goal = nearestPathNode(target);
+				if (start < 0 || goal < 0 || start === goal) return [];
+				const previous = new Int32Array(pathNodes.length).fill(-1);
+				const queue = [start];
+				previous[start] = start;
+				for (let cursor = 0; cursor < queue.length && previous[goal] < 0; cursor++) {
+					const current = queue[cursor];
+					for (const neighbor of pathNodes[current].neighbors) {
+						if (previous[neighbor] >= 0) continue;
+						previous[neighbor] = current;
+						queue.push(neighbor);
+					}
+				}
+				if (previous[goal] < 0) return [];
+				const path = [];
+				for (let node = goal; node !== start; node = previous[node]) path.push(pathNodes[node]);
+				return path.reverse();
+			}
+
+			function moveAlongPath(entity, target, speed, dt) {
+				entity.pathTimer -= dt;
+				if (entity.pathTimer <= 0) {
+					entity.path = findEntityPath(entity, target);
+					entity.pathIndex = 0;
+					entity.pathTimer = .35;
+				}
+				while (entity.pathIndex < entity.path.length) {
+					const waypoint = entity.path[entity.pathIndex];
+					if (Math.hypot(waypoint.x - entity.x, waypoint.y - entity.y) > 12) break;
+					entity.pathIndex++;
+				}
+				const waypoint = entity.path[entity.pathIndex] || target;
+				const dx = waypoint.x - entity.x;
+				const dy = waypoint.y - entity.y;
+				const length = Math.hypot(dx, dy) || 1;
+				moveEntity(entity, dx / length * speed * dt, dy / length * speed * dt);
+			}
+
+			function findFreeSpawn(entity, preferredX, preferredY, occupied) {
+				let spawn = null;
+				let nearestDistance = Infinity;
+				for (let y = tile / 2; y < world.height; y += tile) {
+					for (let x = tile / 2; x < world.width; x += tile) {
+						if (blocks.some(block => circleRectCollision(x, y, entity.radius, block))) continue;
+						if (occupied.some(other => Math.hypot(x - other.x, y - other.y) < entity.radius + other.radius + 12)) continue;
+						const distance = (x - preferredX) ** 2 + (y - preferredY) ** 2;
+						if (distance < nearestDistance) {
+							nearestDistance = distance;
+							spawn = { x, y };
+						}
+					}
+				}
+				if (spawn) {
+					entity.x = spawn.x;
+					entity.y = spawn.y;
+				}
+			}
+
+			function rollCpuRole() {
+				const roll = Math.random() * 100;
+				if (roll < 35) return 'normal';
+				if (roll < 55) return 'sword';
+				if (roll < 60) return 'block';
+				if (roll < 90) return 'doctor';
+				return 'trapper';
+			}
+
+			function cpuTrapPosition(survivor, threat) {
+				const dx = survivor.x - threat.x;
+				const dy = survivor.y - threat.y;
+				const distance = Math.hypot(dx, dy) || 1;
+				for (const offset of [55, 75, 95, 115]) {
+					const x = Math.max(tile / 2, Math.min(world.width - tile / 2, survivor.x - dx / distance * offset));
+					const y = Math.max(tile / 2, Math.min(world.height - tile / 2, survivor.y - dy / distance * offset));
+					const trap = { x, y, radius: 25 };
+					const blocked = blocks.some(block => circleRectCollision(x, y, trap.radius, block));
+					const overlapsThreat = Math.hypot(x - threat.x, y - threat.y) <= threat.radius + trap.radius + 5;
+					if (!blocked && !overlapsThreat) return trap;
+				}
+				return null;
+			}
+
+			function updateCpuSurvivors(dt) {
+				const claimedGenerators = new Set();
+				for (const survivor of cpuSurvivors) {
+					if (survivor.health <= 0) continue;
+					survivor.bob += dt * 8;
+					survivor.stunCooldown = Math.max(0, survivor.stunCooldown - dt);
+					survivor.blockCooldown = Math.max(0, survivor.blockCooldown - dt);
+					survivor.blockRemaining = Math.max(0, survivor.blockRemaining - dt);
+					survivor.trapCooldown = Math.max(0, survivor.trapCooldown - dt);
+					survivor.healCooldown = Math.max(0, survivor.healCooldown - dt);
+					const threat = roundRole === 'killer' ? player : hunter;
+					const threatDistance = Math.hypot(survivor.x - threat.x, survivor.y - threat.y);
+					if (survivor.role === 'sword' && threatDistance <= 100 && survivor.stunCooldown <= 0) {
+						if (roundRole === 'killer') playerStunRemaining = 2.5;
+						else {
+							hunterStunRemaining = 2.5;
+							hunter.pathTimer = 0;
+						}
+						survivor.stunCooldown = 18;
+					}
+					if (survivor.role === 'block' && threatDistance <= survivor.radius + threat.radius + 10 && survivor.blockCooldown <= 0) {
+						survivor.blockRemaining = 2;
+						survivor.blockCooldown = 10;
+						survivor.punchReady = true;
+					}
+					if (survivor.role === 'block' && survivor.punchReady && threatDistance <= 100) {
+						if (roundRole === 'killer') playerStunRemaining = 2.5;
+						else {
+							hunterStunRemaining = 2.5;
+							hunter.pathTimer = 0;
+						}
+						survivor.punchReady = false;
+					}
+					if (survivor.role === 'trapper' && !survivor.trap && survivor.trapCooldown <= 0 && threatDistance < 360 && threatDistance > 100) {
+						survivor.trap = cpuTrapPosition(survivor, threat);
+					}
+					const injuredTeammates = survivor.role === 'doctor' && survivor.healCooldown <= 0
+						? [
+							...cpuSurvivors.filter(other => other !== survivor && other.health > 0 && other.health < 100),
+							...(roundRole === 'survivor' && health < 100 ? [player] : [])
+						]
+						: [];
+					const injuredTeammate = injuredTeammates
+						.sort((a, b) => Math.hypot(a.x - survivor.x, a.y - survivor.y) - Math.hypot(b.x - survivor.x, b.y - survivor.y))[0];
+					let healingTeammate = false;
+					let target = generators
+						.filter(generator => !generator.completed && !claimedGenerators.has(generator))
+						.sort((a, b) => Math.hypot(a.x - survivor.x, a.y - survivor.y) - Math.hypot(b.x - survivor.x, b.y - survivor.y))[0];
+					let fleeing = false;
+					const teammateDistance = injuredTeammate ? Math.hypot(survivor.x - injuredTeammate.x, survivor.y - injuredTeammate.y) : Infinity;
+					const prioritizeHealing = injuredTeammate && (threatDistance >= 90 || teammateDistance <= 160);
+					if (threatDistance < 185 && !prioritizeHealing) {
+						fleeing = true;
+						target = {
+							x: Math.max(tile / 2, Math.min(world.width - tile / 2, survivor.x + (survivor.x - threat.x) * 2)),
+							y: Math.max(tile / 2, Math.min(world.height - tile / 2, survivor.y + (survivor.y - threat.y) * 2))
+						};
+					} else if (injuredTeammate) {
+						target = injuredTeammate;
+						healingTeammate = true;
+					} else if (target) claimedGenerators.add(target);
+					else {
+						const patrolTarget = generators[survivor.patrolIndex % generators.length];
+						if (Math.hypot(survivor.x - patrolTarget.x, survivor.y - patrolTarget.y) < 60) {
+							survivor.patrolIndex = (survivor.patrolIndex + 1) % generators.length;
+							survivor.pathTimer = 0;
+						}
+						target = generators[survivor.patrolIndex % generators.length];
+					}
+					if (target) {
+						moveAlongPath(survivor, target, threatDistance < 185 ? 178 : 135, dt);
+						if (healingTeammate && Math.hypot(survivor.x - target.x, survivor.y - target.y) <= 160) {
+							if (target === player) {
+								health = Math.min(100, health + 30);
+								showNotification('DOCTOR HEALED YOU', 1.4);
+							}
+							else target.health = Math.min(100, target.health + 30);
+							survivor.healCooldown = 10;
+							survivor.pathTimer = 0;
+						} else if (!fleeing && !healingTeammate && !target.completed && threatDistance > 100 && Math.hypot(survivor.x - target.x, survivor.y - target.y) < 60) {
+							target.progress = Math.min(1, target.progress + dt / 8);
+							if (target.progress >= 1) {
+								target.completed = true;
+								generatorCount.textContent = `${generators.filter(generator => generator.completed).length} / ${generators.length}`;
+								if (roundRole === 'survivor') {
+									cash += 3;
+									runEarnings += 3;
+									cashDisplay.textContent = `$${cash}`;
+									showNotification('+ 3$ - Generator Complete.');
+								}
+								cpuSurvivors.forEach(bot => { bot.pathTimer = 0; });
+							}
+						}
+					}
+					if (survivor.trap && Math.hypot(threat.x - survivor.trap.x, threat.y - survivor.trap.y) <= threat.radius + survivor.trap.radius) {
+						survivor.trap = null;
+						survivor.trapCooldown = 10;
+						if (roundRole === 'killer') playerStunRemaining = 3;
+						else {
+							hunterStunRemaining = 3;
+							hunter.pathTimer = 0;
+							hunter.sprinting = false;
+						}
+					}
+					separateFromEntity(survivor, threat);
+				}
+
+				for (let i = 0; i < cpuSurvivors.length; i++) {
+					const first = cpuSurvivors[i];
+					if (first.health <= 0) continue;
+					for (let j = i + 1; j < cpuSurvivors.length; j++) {
+						const second = cpuSurvivors[j];
+						if (second.health <= 0) continue;
+						separateFromEntity(first, second, 6);
+					}
+				}
+			}
+
+			function nearestGenerator() {
+				let target = null;
+				let nearestDistance = Infinity;
+				for (const generator of generators) {
+					if (generator.completed) continue;
+					const distance = Math.hypot(player.x - generator.x, player.y - generator.y);
+					if (distance < 66 && distance < nearestDistance) {
+						target = generator;
+						nearestDistance = distance;
+					}
+				}
+				return target;
+			}
+
+			function showNotification(message, duration = 2.2) {
+				generatorToast.textContent = message;
+				generatorToast.classList.add('show');
+				toastTimer = duration;
+			}
+
+			function refreshMenuState() {
+				document.getElementById('shopCash').textContent = `$${cash}`;
+				const buyButton = document.getElementById('buySwordButton');
+				const swordStatus = document.getElementById('swordRoleStatus');
+				const equipSwordButton = document.getElementById('equipSwordButton');
+				const buyBlockButton = document.getElementById('buyBlockButton');
+				const blockStatus = document.getElementById('blockRoleStatus');
+				const equipBlockButton = document.getElementById('equipBlockButton');
+				const buyDoctorButton = document.getElementById('buyDoctorButton');
+				const doctorStatus = document.getElementById('doctorRoleStatus');
+				const equipDoctorButton = document.getElementById('equipDoctorButton');
+				const buyTrapperButton = document.getElementById('buyTrapperButton');
+				const trapperStatus = document.getElementById('trapperRoleStatus');
+				const equipTrapperButton = document.getElementById('equipTrapperButton');
+				const normalStatus = document.getElementById('normalRoleStatus');
+				document.getElementById('gearDoctorRole').hidden = !ownedRoles.has('doctor');
+				document.getElementById('gearSwordRole').hidden = !ownedRoles.has('sword');
+				document.getElementById('gearBlockRole').hidden = !ownedRoles.has('block');
+				document.getElementById('gearTrapperRole').hidden = !ownedRoles.has('trapper');
+				normalStatus.textContent = equippedRole === 'normal' ? 'Equipped' : 'Owned';
+				document.getElementById('equipNormalButton').textContent = equippedRole === 'normal' ? 'EQUIPPED' : 'EQUIP NORMAL';
+				document.getElementById('equipNormalButton').disabled = equippedRole === 'normal';
+				if (ownedRoles.has('sword')) {
+					buyButton.textContent = 'UNLOCKED';
+					buyButton.disabled = true;
+					swordStatus.textContent = equippedRole === 'sword' ? 'Equipped' : 'Owned';
+					equipSwordButton.textContent = equippedRole === 'sword' ? 'EQUIPPED' : 'EQUIP SWORD';
+					equipSwordButton.disabled = equippedRole === 'sword';
+				} else {
+					buyButton.textContent = `UNLOCK — $${swordPrice}`;
+					buyButton.disabled = false;
+					swordStatus.textContent = `Locked — $${swordPrice} in shop`;
+					equipSwordButton.textContent = 'UNLOCK IN SHOP';
+					equipSwordButton.disabled = false;
+				}
+				if (ownedRoles.has('block')) {
+					buyBlockButton.textContent = 'UNLOCKED';
+					buyBlockButton.disabled = true;
+					blockStatus.textContent = equippedRole === 'block' ? 'Equipped' : 'Owned';
+					equipBlockButton.textContent = equippedRole === 'block' ? 'EQUIPPED' : 'EQUIP BLOCK';
+					equipBlockButton.disabled = equippedRole === 'block';
+				} else {
+					buyBlockButton.textContent = `UNLOCK — $${blockPrice}`;
+					buyBlockButton.disabled = false;
+					blockStatus.textContent = `Locked — $${blockPrice} in shop`;
+					equipBlockButton.textContent = 'UNLOCK IN SHOP';
+					equipBlockButton.disabled = false;
+				}
+				if (ownedRoles.has('doctor')) {
+					buyDoctorButton.textContent = 'UNLOCKED';
+					buyDoctorButton.disabled = true;
+					doctorStatus.textContent = equippedRole === 'doctor' ? 'Equipped' : 'Owned';
+					equipDoctorButton.textContent = equippedRole === 'doctor' ? 'EQUIPPED' : 'EQUIP DOCTOR';
+					equipDoctorButton.disabled = equippedRole === 'doctor';
+				} else {
+					buyDoctorButton.textContent = `UNLOCK — $${doctorPrice}`;
+					buyDoctorButton.disabled = false;
+					doctorStatus.textContent = `Locked — $${doctorPrice} in shop`;
+					equipDoctorButton.textContent = 'UNLOCK IN SHOP';
+					equipDoctorButton.disabled = false;
+				}
+				if (ownedRoles.has('trapper')) {
+					buyTrapperButton.textContent = 'UNLOCKED';
+					buyTrapperButton.disabled = true;
+					trapperStatus.textContent = equippedRole === 'trapper' ? 'Equipped' : 'Owned';
+					equipTrapperButton.textContent = equippedRole === 'trapper' ? 'EQUIPPED' : 'EQUIP TRAPPER';
+					equipTrapperButton.disabled = equippedRole === 'trapper';
+				} else {
+					buyTrapperButton.textContent = `UNLOCK — $${trapperPrice}`;
+					buyTrapperButton.disabled = false;
+					trapperStatus.textContent = `Locked — $${trapperPrice} in shop`;
+					equipTrapperButton.textContent = 'UNLOCK IN SHOP';
+					equipTrapperButton.disabled = false;
+				}
+				document.getElementById('shopMessage').textContent = '';
+				document.getElementById('blockShopMessage').textContent = '';
+				document.getElementById('doctorShopMessage').textContent = '';
+				document.getElementById('trapperShopMessage').textContent = '';
+			}
+
+			function attemptRoleStun(role) {
+				if (!running || roundRole !== 'survivor' || equippedRole !== role) return;
+				if (role === 'sword' && stunCooldownRemaining > 0) {
+					showNotification(`Stun ready in ${stunCooldownRemaining.toFixed(1)}s`, 1);
+					return;
+				}
+				if (role === 'block' && !blockPunchReady) {
+					showNotification('Block a killer attack to unlock a punch', 1.4);
+					return;
+				}
+				if (Math.hypot(player.x - hunter.x, player.y - hunter.y) > 100) {
+					showNotification('Get closer to stun the killer', 1);
+					return;
+				}
+				hunterStunRemaining = 2.5;
+				hunter.pathTimer = 0;
+				if (role === 'sword') stunCooldownRemaining = 18;
+				else blockPunchReady = false;
+				cash += 5;
+				runEarnings += 5;
+				showNotification('5$ - Stunned The Killer', 2.2);
+			}
+
+			function activateBlock() {
+				if (!running || roundRole !== 'survivor' || equippedRole !== 'block') return;
+				if (blockCooldownRemaining > 0) {
+					showNotification(`Block ready in ${blockCooldownRemaining.toFixed(1)}s`, 1);
+					return;
+				}
+				blockRemaining = 2;
+				blockCooldownRemaining = 10;
+				blockHasBlockedAttack = false;
+				showNotification('BLOCK ACTIVE — 2 SECONDS', 1);
+			}
+
+			function attemptDoctorHeal() {
+				if (!running || roundRole !== 'survivor' || equippedRole !== 'doctor') return;
+				if (doctorHealCooldownRemaining > 0) {
+					showNotification(`Heal ready in ${doctorHealCooldownRemaining.toFixed(1)}s`, 1);
+					return;
+				}
+				const targetCandidate = cpuSurvivors
+					.filter(survivor => survivor.health > 0 && survivor.health < 100)
+					.map(survivor => {
+						const dx = Math.abs(survivor.x - player.x);
+						const dy = Math.abs(survivor.y - player.y);
+						const adjacentOnAxis = (dx > 18 && dx <= tile && dy <= 18) || (dy > 18 && dy <= tile && dx <= 18);
+						return { survivor, distance: Math.hypot(dx, dy), adjacentOnAxis };
+					})
+					.filter(candidate => candidate.adjacentOnAxis)
+					.sort((a, b) => a.distance - b.distance)[0];
+				const target = targetCandidate ? targetCandidate.survivor : null;
+				if (!target) {
+					showNotification('Move next to an injured CPU survivor (not diagonally)', 1.5);
+					return;
+				}
+				const healed = Math.min(30, 100 - target.health);
+				target.health += healed;
+				cash += 3;
+				runEarnings += 3;
+				cashDisplay.textContent = `$${cash}`;
+				refreshMenuState();
+				doctorHealCooldownRemaining = 10;
+				showNotification('3$ - You Healed A Survivor', 2.2);
+			}
+
+			function placeTrap() {
+				if (!running || roundRole !== 'survivor' || equippedRole !== 'trapper') return;
+				if (activeTrap) {
+					showNotification('Only one trap can be active at a time', 1.4);
+					return;
+				}
+				if (trapCooldownRemaining > 0) {
+					showNotification(`Trap ready in ${trapCooldownRemaining.toFixed(1)}s`, 1);
+					return;
+				}
+				activeTrap = { x: player.x, y: player.y, radius: 25 };
+				showNotification('TRAP PLACED', 1.2);
+			}
+
+			function updateAbilityHud() {
+				const hasAbility = roundRole === 'survivor' && ['sword', 'block', 'doctor', 'trapper'].includes(equippedRole);
+				abilityPanel.classList.toggle('show', hasAbility);
+				if (!hasAbility) return;
+
+				if (equippedRole === 'sword') {
+					swordAbilityIcon.hidden = false;
+					blockAbilityIcon.hidden = true;
+					doctorAbilityIcon.hidden = true;
+					trapperAbilityIcon.hidden = true;
+					abilityName.textContent = 'SWORD STUN (Q)';
+					abilityStatus.textContent = stunCooldownRemaining > 0 ? `${stunCooldownRemaining.toFixed(1)}s` : 'READY';
+					abilityFill.style.width = `${(1 - stunCooldownRemaining / 18) * 100}%`;
+					abilityFill.classList.toggle('cooldown', stunCooldownRemaining > 0);
+					punchAbilityRow.hidden = true;
+					return;
+				}
+
+				if (equippedRole === 'doctor') {
+					swordAbilityIcon.hidden = true;
+					blockAbilityIcon.hidden = true;
+					doctorAbilityIcon.hidden = false;
+					trapperAbilityIcon.hidden = true;
+					abilityName.textContent = 'HEAL (Q)';
+					abilityStatus.textContent = doctorHealCooldownRemaining > 0 ? `${doctorHealCooldownRemaining.toFixed(1)}s` : 'READY';
+					abilityFill.style.width = `${(1 - doctorHealCooldownRemaining / 10) * 100}%`;
+					abilityFill.classList.toggle('cooldown', doctorHealCooldownRemaining > 0);
+					punchAbilityRow.hidden = true;
+					return;
+				}
+
+				if (equippedRole === 'trapper') {
+					swordAbilityIcon.hidden = true;
+					blockAbilityIcon.hidden = true;
+					doctorAbilityIcon.hidden = true;
+					trapperAbilityIcon.hidden = false;
+					abilityName.textContent = 'TRAP (Q)';
+					abilityStatus.textContent = activeTrap ? 'ACTIVE' : trapCooldownRemaining > 0 ? `${trapCooldownRemaining.toFixed(1)}s` : 'READY';
+					abilityFill.style.width = activeTrap ? '100%' : `${(1 - trapCooldownRemaining / 10) * 100}%`;
+					abilityFill.classList.toggle('cooldown', trapCooldownRemaining > 0);
+					punchAbilityRow.hidden = true;
+					return;
+				}
+
+				swordAbilityIcon.hidden = true;
+				blockAbilityIcon.hidden = false;
+				doctorAbilityIcon.hidden = true;
+				trapperAbilityIcon.hidden = true;
+				abilityName.textContent = 'BLOCK (Q)';
+				if (blockRemaining > 0) {
+					abilityStatus.textContent = `ACTIVE ${blockRemaining.toFixed(1)}s`;
+					abilityFill.style.width = `${(blockRemaining / 2) * 100}%`;
+				} else {
+					abilityStatus.textContent = blockCooldownRemaining > 0 ? `${blockCooldownRemaining.toFixed(1)}s` : 'READY';
+					abilityFill.style.width = `${(1 - blockCooldownRemaining / 10) * 100}%`;
+				}
+				abilityFill.classList.toggle('cooldown', blockCooldownRemaining > 0 && blockRemaining <= 0);
+				punchAbilityRow.hidden = false;
+				punchLockIcon.hidden = blockPunchReady;
+				punchStatus.textContent = blockPunchReady ? 'READY' : 'LOCKED';
+				punchFill.style.width = blockPunchReady ? '100%' : '0%';
+			}
+
+			function update(dt) {
+				if (!running || ended) return;
+				if (toastTimer > 0) {
+					toastTimer = Math.max(0, toastTimer - dt);
+					if (toastTimer === 0) generatorToast.classList.remove('show');
+				}
+				remainingTime = Math.max(0, remainingTime - dt);
+				const secondsLeft = Math.ceil(remainingTime);
+				timerDisplay.textContent = `${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(secondsLeft % 60).padStart(2, '0')}`;
+				if (remainingTime <= 0) { finish(roundRole === 'survivor'); return; }
+				gameTime += dt;
+				stunCooldownRemaining = Math.max(0, stunCooldownRemaining - dt);
+				blockCooldownRemaining = Math.max(0, blockCooldownRemaining - dt);
+				doctorHealCooldownRemaining = Math.max(0, doctorHealCooldownRemaining - dt);
+				trapCooldownRemaining = Math.max(0, trapCooldownRemaining - dt);
+				hunterStunRemaining = Math.max(0, hunterStunRemaining - dt);
+				playerStunRemaining = Math.max(0, playerStunRemaining - dt);
+				blockRemaining = Math.max(0, blockRemaining - dt);
+				if (equippedRole === 'sword') roleAbilityButton.textContent = stunCooldownRemaining > 0 ? `${Math.ceil(stunCooldownRemaining)}s` : 'SWORD';
+				else if (equippedRole === 'block') roleAbilityButton.textContent = blockRemaining > 0 ? `BLOCK ${Math.ceil(blockRemaining)}s` : blockCooldownRemaining > 0 ? `${Math.ceil(blockCooldownRemaining)}s` : 'BLOCK';
+				else if (equippedRole === 'doctor') roleAbilityButton.textContent = doctorHealCooldownRemaining > 0 ? `${Math.ceil(doctorHealCooldownRemaining)}s` : 'HEAL';
+				else if (equippedRole === 'trapper') roleAbilityButton.textContent = activeTrap ? 'TRAP SET' : trapCooldownRemaining > 0 ? `${Math.ceil(trapCooldownRemaining)}s` : 'TRAP';
+				updateAbilityHud();
+				let dx = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
+				let dy = (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0);
+				if (movePointer.active) { dx = Math.max(-1, Math.min(1, movePointer.x)); dy = Math.max(-1, Math.min(1, movePointer.y)); }
+				if (roundRole === 'killer' && playerStunRemaining > 0) { dx = 0; dy = 0; }
+				const magnitude = Math.hypot(dx, dy);
+				if (magnitude > 0) { dx /= magnitude; dy /= magnitude; player.faceX = dx; player.faceY = dy; }
+				const sprintHeld = keys.has('shift') || (roundRole === 'survivor' && keys.has(' '));
+				const sprinting = sprintHeld && player.stamina > 0 && magnitude > 0;
+				const speed = sprinting ? 262 : 174;
+				if (sprinting) player.stamina = Math.max(0, player.stamina - 34 * dt);
+				else if (!sprintHeld || magnitude === 0) player.stamina = Math.min(100, player.stamina + 21 * dt);
+				moveEntity(player, dx * speed * dt, dy * speed * dt);
+
+				const distanceToPlayer = Math.hypot(player.x - hunter.x, player.y - hunter.y);
+				let generatorTarget = null;
+				let hunterTarget = player;
+				if (roundRole === 'survivor') {
+					hunterTarget = [player, ...cpuSurvivors.filter(survivor => survivor.health > 0)]
+						.reduce((closest, survivor) => Math.hypot(survivor.x - hunter.x, survivor.y - hunter.y) < Math.hypot(closest.x - hunter.x, closest.y - hunter.y) ? survivor : closest, player);
+					const hunterDistance = Math.hypot(hunterTarget.x - hunter.x, hunterTarget.y - hunter.y);
+					const detection = hunterTarget === player && sprinting ? 440 : 305;
+					if (hunterDistance < detection) hunter.alert = Math.min(1, hunter.alert + dt * 1.8);
+					else hunter.alert = Math.max(0, hunter.alert - dt * .28);
+					hunter.sprinting = hunter.alert > .15 && hunterDistance < 220 && hunter.stamina > 0 && hunterStunRemaining === 0;
+					if (hunter.sprinting) hunter.stamina = Math.max(0, hunter.stamina - 38 * dt);
+					else hunter.stamina = Math.min(100, hunter.stamina + 21 * dt);
+					const huntSpeed = hunter.sprinting ? 220 : hunter.alert > .15 ? 143 : 72;
+					if (hunterStunRemaining === 0) moveAlongPath(hunter, hunterTarget, huntSpeed, dt);
+					hunter.bob += dt * (hunter.alert > .2 ? 9 : 4);
+					if (activeTrap && Math.hypot(hunter.x - activeTrap.x, hunter.y - activeTrap.y) < hunter.radius + activeTrap.radius) {
+						activeTrap = null;
+						hunterStunRemaining = 3;
+						hunter.pathTimer = 0;
+						hunter.sprinting = false;
+						trapCooldownRemaining = 10;
+						cash += 5;
+						runEarnings += 5;
+						cashDisplay.textContent = `$${cash}`;
+						refreshMenuState();
+						showNotification('5$ - Trapped The Killer', 2.2);
+					}
+					generatorTarget = nearestGenerator();
+					if (generatorTarget && actionDown) {
+						generatorTarget.progress = Math.min(1, generatorTarget.progress + dt / 8);
+						if (generatorTarget.progress >= 1) {
+							generatorTarget.completed = true;
+							cash += 3;
+							runEarnings += 3;
+							generatorCount.textContent = `${generators.filter(generator => generator.completed).length} / ${generators.length}`;
+							cashDisplay.textContent = `$${cash}`;
+							showNotification('+ 3$ - Generator Complete.');
+						}
+					}
+				}
+				updateCpuSurvivors(dt);
+
+				const currentDistance = Math.hypot(player.x - hunter.x, player.y - hunter.y);
+				if (roundRole === 'killer') {
+					const target = cpuSurvivors
+						.filter(survivor => survivor.health > 0)
+						.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))[0];
+					if (target) {
+						const distanceToTarget = Math.hypot(player.x - target.x, player.y - target.y);
+						if (playerStunRemaining <= 0 && distanceToTarget <= player.radius + target.radius + 10 && !(target.role === 'block' && target.blockRemaining > 0)) {
+							const previousHealth = target.health;
+							target.health = Math.max(0, target.health - 50 * dt);
+							if (previousHealth > 0 && target.health <= 0) {
+								cash += 5;
+								runEarnings += 5;
+								cashDisplay.textContent = `$${cash}`;
+								refreshMenuState();
+								showNotification('5$ - You Killed The Survivor', 2.2);
+							}
+						}
+						health = target.health;
+					}
+					if (cpuSurvivors.every(survivor => survivor.health <= 0)) { finish(true); return; }
+				} else if (hunterTarget === player && equippedRole === 'block' && blockRemaining > 0 && hunterStunRemaining === 0 && currentDistance <= hunter.radius + player.radius + 10) {
+					if (!blockHasBlockedAttack) {
+						blockHasBlockedAttack = true;
+						blockPunchReady = true;
+						const knockbackX = hunter.x - player.x;
+						const knockbackY = hunter.y - player.y;
+						const knockbackLength = Math.hypot(knockbackX, knockbackY) || 1;
+						moveEntity(hunter, knockbackX / knockbackLength * 34, knockbackY / knockbackLength * 34);
+						showNotification('ATTACK BLOCKED — PUNCH READY', 1.4);
+					}
+				} else if (roundRole === 'survivor' && hunterStunRemaining === 0 && Math.hypot(hunterTarget.x - hunter.x, hunterTarget.y - hunter.y) <= hunter.radius + hunterTarget.radius + 10) {
+					if (hunterTarget === player) {
+						health = Math.max(0, health - 50 * dt);
+						if (health <= 0) { finish(false); return; }
+					} else if (!(hunterTarget.role === 'block' && hunterTarget.blockRemaining > 0)) {
+						hunterTarget.health = Math.max(0, hunterTarget.health - 50 * dt);
+					}
+				}
+
+				healthFill.style.width = `${health}%`;
+				healthValue.textContent = `${Math.ceil(health)} / 100 HP`;
+				player.stamina = Math.max(0, player.stamina);
+				staminaFill.style.width = `${player.stamina}%`;
+				staminaValue.textContent = `${Math.ceil(player.stamina)}%`;
+				const dangerDistance = roundRole === 'killer' && cpuSurvivors.some(survivor => survivor.health > 0)
+					? Math.min(...cpuSurvivors.filter(survivor => survivor.health > 0).map(survivor => Math.hypot(survivor.x - player.x, survivor.y - player.y)))
+					: roundRole === 'survivor' ? Math.hypot(hunterTarget.x - hunter.x, hunterTarget.y - hunter.y) : distanceToPlayer;
+				const danger = Math.max(0, 1 - dangerDistance / 380);
+				dangerFill.style.width = `${danger * 100}%`;
+				threatText.textContent = roundRole === 'killer'
+					? dangerDistance < 180 ? 'SURVIVOR NEARBY' : 'HUNTING SURVIVOR'
+					: hunterStunRemaining > 0 ? 'KILLER STUNNED' : equippedRole === 'block' && blockRemaining > 0 && currentDistance < 60 ? 'BLOCKING' : dangerDistance < 180 ? 'HUNTER CLOSE' : hunter.alert > .1 ? 'HUNTING' : 'THREAT NEARBY';
+				prompt.classList.toggle('show', roundRole === 'killer' || !!generatorTarget);
+				if (roundRole === 'killer') promptText.textContent = 'Attacking automatically when close to a survivor';
+				else if (generatorTarget) promptText.textContent = `Hold to repair ${Math.round((1 - generatorTarget.progress) * 100)}%`;
+				else if (equippedRole === 'sword') promptText.textContent = `Q: stun killer${stunCooldownRemaining > 0 ? ` (${stunCooldownRemaining.toFixed(1)}s)` : ''}`;
+				else if (equippedRole === 'block') promptText.textContent = blockPunchReady
+					? `Punch ready on E · Q block ${blockCooldownRemaining > 0 ? `(${blockCooldownRemaining.toFixed(1)}s)` : 'ready'}`
+					: `Q: block 2 sec${blockCooldownRemaining > 0 ? ` (${blockCooldownRemaining.toFixed(1)}s)` : ''} · block an attack to unlock E punch`;
+				else if (equippedRole === 'doctor') promptText.textContent = `Q: heal an adjacent CPU survivor${doctorHealCooldownRemaining > 0 ? ` (${doctorHealCooldownRemaining.toFixed(1)}s)` : ''}`;
+				else if (equippedRole === 'trapper') promptText.textContent = activeTrap ? 'Trap set — wait for the killer to step on it' : `Q: place a trap${trapCooldownRemaining > 0 ? ` (${trapCooldownRemaining.toFixed(1)}s)` : ''}`;
+				const rect = canvas.getBoundingClientRect();
+				camera.x = Math.max(0, Math.min(world.width - rect.width, player.x - rect.width / 2));
+				camera.y = Math.max(0, Math.min(world.height - rect.height, player.y - rect.height / 2));
+			}
+
+			function drawFloor() {
+				const floorColors = maps[currentMapIndex]?.floor || ['#29312b', '#252d28', 'rgba(176, 185, 155, .12)'];
+				ctx.fillStyle = floorColors[1]; ctx.fillRect(0, 0, world.width, world.height);
+				for (let y = 0; y < world.height; y += tile) {
+					for (let x = 0; x < world.width; x += tile) {
+						const alternate = ((x / tile + y / tile) % 2) === 0;
+						ctx.fillStyle = alternate ? floorColors[0] : floorColors[1]; ctx.fillRect(x, y, tile, tile);
+						ctx.strokeStyle = 'rgba(181, 196, 173, .045)'; ctx.strokeRect(x + .5, y + .5, tile, tile);
+						if ((x / tile * 7 + y / tile * 11) % 13 === 0) {
+							ctx.fillStyle = floorColors[2]; ctx.fillRect(x + 15, y + 23, 2, 2); ctx.fillRect(x + 42, y + 46, 1, 1);
+						}
+					}
+				}
+			}
+
+			function drawBlocks() {
+				for (const block of blocks) {
+					ctx.fillStyle = '#171e1a'; ctx.fillRect(block.x + 5, block.y + 7, block.w, block.h);
+					ctx.fillStyle = '#3a443c'; ctx.fillRect(block.x, block.y, block.w, block.h);
+					ctx.fillStyle = '#465147'; ctx.fillRect(block.x, block.y, block.w, 5);
+					ctx.strokeStyle = 'rgba(6, 11, 8, .7)'; ctx.strokeRect(block.x + .5, block.y + .5, block.w - 1, block.h - 1);
+					if (block.w > block.h) for (let x = block.x + 18; x < block.x + block.w - 8; x += 30) {
+						ctx.fillStyle = 'rgba(15, 21, 17, .3)'; ctx.fillRect(x, block.y + 13, 13, 3);
+					}
+				}
+			}
+
+			function drawGenerator(generator, index) {
+				ctx.fillStyle = generator.completed ? 'rgba(187, 220, 116, .14)' : 'rgba(214, 164, 87, .12)';
+				ctx.beginPath(); ctx.arc(generator.x, generator.y, 54, 0, Math.PI * 2); ctx.fill();
+				ctx.fillStyle = '#111713'; ctx.fillRect(generator.x - 18, generator.y - 22, 36, 44);
+				ctx.fillStyle = generator.completed ? '#9eb96d' : '#606e59'; ctx.fillRect(generator.x - 14, generator.y - 19, 28, 38);
+				ctx.fillStyle = generator.completed ? '#d0eb91' : '#bf7656'; ctx.fillRect(generator.x - 9, generator.y - 12, 18, 9);
+				ctx.fillStyle = '#1a241c'; ctx.fillRect(generator.x - 8, generator.y + 3, 16, 11);
+				ctx.fillStyle = generator.completed ? '#c3e27c' : '#e27956'; ctx.fillRect(generator.x - 3, generator.y + 5, 6, 6);
+				if (!generator.completed && generator.progress > 0) {
+					ctx.strokeStyle = '#d3e58e'; ctx.lineWidth = 3; ctx.beginPath();
+					ctx.arc(generator.x, generator.y, 27, -Math.PI / 2, -Math.PI / 2 + generator.progress * Math.PI * 2); ctx.stroke();
+				}
+				ctx.fillStyle = 'rgba(210, 223, 205, .7)'; ctx.font = '9px Trebuchet MS'; ctx.textAlign = 'center';
+				ctx.fillText(generator.completed ? 'COMPLETE' : `G-${String(index + 1).padStart(2, '0')}`, generator.x, generator.y + 34);
+			}
+
+			function drawTrap() {
+				const traps = [
+					...(activeTrap ? [{ trap: activeTrap, isCpu: false }] : []),
+					...cpuSurvivors.filter(survivor => survivor.health > 0 && survivor.trap).map(survivor => ({ trap: survivor.trap, isCpu: true }))
+				];
+				for (const { trap, isCpu } of traps) {
+					ctx.save();
+					ctx.translate(trap.x, trap.y);
+					ctx.fillStyle = 'rgba(0, 0, 0, .45)';
+					ctx.beginPath(); ctx.ellipse(0, 7, 23, 12, 0, 0, Math.PI * 2); ctx.fill();
+					ctx.strokeStyle = isCpu ? '#ef795f' : '#d4a961'; ctx.lineWidth = 3;
+					ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.stroke();
+					ctx.beginPath(); ctx.moveTo(-13, -13); ctx.lineTo(13, 13); ctx.moveTo(13, -13); ctx.lineTo(-13, 13); ctx.stroke();
+					ctx.restore();
+				}
+			}
+
+			function drawPerson(entity, isHunter) {
+				const bob = Math.sin(entity === hunter ? hunter.bob : gameTime * 11) * 2;
+				ctx.save(); ctx.translate(entity.x, entity.y + bob);
+				ctx.fillStyle = isHunter ? 'rgba(0, 0, 0, .48)' : 'rgba(0, 0, 0, .38)';
+				ctx.beginPath(); ctx.ellipse(0, 9, isHunter ? 22 : 17, 10, 0, 0, Math.PI * 2); ctx.fill();
+				if ((isHunter && roundRole === 'survivor' && hunterStunRemaining > 0) || (entity === player && roundRole === 'killer' && playerStunRemaining > 0)) {
+					ctx.strokeStyle = '#c3e27c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -5, 31, 0, Math.PI * 2); ctx.stroke();
+					ctx.fillStyle = '#c3e27c'; ctx.font = 'bold 9px Trebuchet MS'; ctx.textAlign = 'center';
+					ctx.fillText('Stunned', 0, -39);
+				}
+				if (isHunter) {
+					ctx.fillStyle = '#151715'; ctx.beginPath(); ctx.ellipse(0, -4, 18, 25, 0, 0, Math.PI * 2); ctx.fill();
+					ctx.fillStyle = '#31332d'; ctx.beginPath(); ctx.ellipse(0, -15, 12, 14, 0, 0, Math.PI * 2); ctx.fill();
+					ctx.fillStyle = '#ee715d'; ctx.fillRect(-7, -18, 4, 3); ctx.fillRect(3, -18, 4, 3);
+					ctx.strokeStyle = 'rgba(245, 91, 75, .7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI * 2); ctx.stroke();
+				} else {
+					ctx.fillStyle = '#778f71'; ctx.fillRect(-11, -11, 22, 23);
+					ctx.fillStyle = '#d5b998'; ctx.beginPath(); ctx.arc(0, -17, 9, 0, Math.PI * 2); ctx.fill();
+					ctx.fillStyle = '#303b32'; ctx.fillRect(-9, -25, 18, 6);
+					ctx.fillStyle = '#d6e98f'; ctx.fillRect(7, -4, 4, 5);
+					if (entity !== player) {
+						ctx.fillStyle = '#172019'; ctx.fillRect(-16, -39, 32, 4);
+						ctx.fillStyle = '#c3e27c'; ctx.fillRect(-16, -39, 32 * Math.max(0, entity.health / 100), 4);
+						ctx.fillStyle = '#d3ddce'; ctx.font = 'bold 7px Trebuchet MS'; ctx.textAlign = 'center';
+						ctx.fillText(entity.role ? entity.role.toUpperCase() : 'CPU', 0, -43);
+					}
+					if (entity !== player && entity.role === 'sword') {
+						ctx.save(); ctx.translate(13, 0); ctx.rotate(Math.PI / 4);
+						ctx.fillStyle = '#79593e'; ctx.fillRect(-2, 1, 4, 12);
+						ctx.fillStyle = '#c9d2c8'; ctx.fillRect(-1.5, -12, 3, 14);
+						ctx.fillStyle = '#e8eee5'; ctx.beginPath(); ctx.moveTo(-1.5, -12); ctx.lineTo(0, -18); ctx.lineTo(1.5, -12); ctx.closePath(); ctx.fill();
+						ctx.restore();
+					}
+					if (entity === player && roundRole === 'survivor' && equippedRole === 'sword') {
+						ctx.save(); ctx.rotate(Math.atan2(player.faceY, player.faceX));
+						ctx.fillStyle = '#8d6847'; ctx.fillRect(8, -2, 14, 4);
+						ctx.fillStyle = '#dce6ce'; ctx.beginPath(); ctx.moveTo(20, -3); ctx.lineTo(39, 0); ctx.lineTo(20, 3); ctx.closePath(); ctx.fill();
+						ctx.restore();
+					}
+					if (entity === player && roundRole === 'survivor' && equippedRole === 'doctor') {
+						ctx.save();
+						ctx.rotate(Math.atan2(player.faceY, player.faceX));
+						ctx.translate(17, 1);
+						ctx.fillStyle = '#e5e9dd'; ctx.fillRect(-7, -7, 14, 14);
+						ctx.fillStyle = '#ad5147'; ctx.fillRect(-2, -5, 4, 10); ctx.fillRect(-5, -2, 10, 4);
+						ctx.fillStyle = '#9b9f91'; ctx.fillRect(-7, -7, 14, 2);
+						ctx.restore();
+					}
+					if (entity === player && roundRole === 'survivor' && equippedRole === 'trapper') {
+						ctx.save();
+						ctx.rotate(Math.atan2(player.faceY, player.faceX));
+						ctx.translate(18, 1);
+						ctx.fillStyle = '#343a35'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+						ctx.strokeStyle = '#d4a961'; ctx.lineWidth = 2;
+						ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.stroke();
+						ctx.beginPath();
+						for (let i = 0; i < 8; i++) {
+							const angle = i * Math.PI / 4;
+							ctx.moveTo(Math.cos(angle) * 7, Math.sin(angle) * 7);
+							ctx.lineTo(Math.cos(angle) * 10, Math.sin(angle) * 10);
+						}
+						ctx.stroke();
+						ctx.restore();
+					}
+					if (entity !== player && entity.role === 'doctor') {
+						ctx.fillStyle = '#e5e9dd'; ctx.fillRect(10, -5, 12, 12);
+						ctx.fillStyle = '#ad5147'; ctx.fillRect(14, -3, 4, 8); ctx.fillRect(12, -1, 8, 4);
+					}
+					if (entity !== player && entity.role === 'trapper') {
+						ctx.fillStyle = '#343a35'; ctx.beginPath(); ctx.arc(17, 1, 7, 0, Math.PI * 2); ctx.fill();
+						ctx.strokeStyle = '#ef795f'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(17, 1, 4, 0, Math.PI * 2); ctx.stroke();
+					}
+				}
+				ctx.restore();
+			}
+
+			function draw() {
+				const rect = canvas.getBoundingClientRect();
+				if (!rect.width || !rect.height) return;
+				ctx.clearRect(0, 0, rect.width, rect.height);
+				ctx.save(); ctx.translate(-camera.x, -camera.y);
+				drawFloor(); drawBlocks(); generators.forEach(drawGenerator); drawTrap();
+				if (roundRole === 'survivor') drawPerson(hunter, true);
+				drawPerson(player, roundRole === 'killer');
+				cpuSurvivors.forEach(survivor => { if (survivor.health > 0) drawPerson(survivor, false); });
+				ctx.restore();
+			}
+
+			function updateKillerChanceDisplay() {
+				document.getElementById('killerChanceDisplay').textContent = killerChance < 100
+					? `${killerChance}% · +2% per win`
+					: `${killerChance}% · MAX`;
+			}
+
+			function finish(won) {
+				if (ended) return;
+				ended = true; running = false; hud.classList.remove('active'); overlay.classList.remove('hidden');
+				document.getElementById('introPanel').classList.remove('menu-home');
+				document.querySelectorAll('.menu-panel').forEach(panel => { panel.hidden = true; });
+				if (won) {
+					cash += 10;
+					runEarnings += 10;
+					cashDisplay.textContent = `$${cash}`;
+					refreshMenuState();
+				}
+				const chanceIncrease = won && roundRole === 'survivor' ? Math.min(2, 100 - killerChance) : 0;
+				if (roundRole === 'killer') killerChance = 10;
+				else killerChance += chanceIncrease;
+				updateKillerChanceDisplay();
+				const resultTitle = roundRole === 'killer'
+					? won ? 'SURVIVOR CAUGHT.' : 'SURVIVOR ESCAPED.'
+					: won ? 'SHIFT SURVIVED.' : 'CAUGHT IN THE DARK.';
+				const resultDescription = roundRole === 'killer'
+					? won ? 'You caught the CPU survivor.' : 'The CPU survivor survived until the countdown ended.'
+					: won ? 'You outlasted the hunter until the timer ran out.' : 'The hunter caught you before you could survive the full minute.';
+				const chanceSummary = roundRole === 'killer'
+					? 'Killer chance reset to 10% after your killer round.'
+					: won ? `Killer chance increased by ${chanceIncrease}% to ${killerChance}%.` : `Killer chance: ${killerChance}%.`;
+				const resultSummary = won
+					? `You won and earned $${runEarnings} this round. ${chanceSummary}`
+					: `You earned $${runEarnings} this round. ${chanceSummary}`;
+				const winReward = won ? '<div class="mission"><div class="mission-symbol">+$</div><div><b>10$ - Survived The Round</b><small>Round victory reward added to your wallet.</small></div></div>' : '';
+				document.getElementById('resultPanel').innerHTML = `<div class="chapter">AFTERLIGHT // SURVIVAL MODE</div><div class="end-title" style="color:${won ? '#c3e27c' : '#f36d5b'}">${resultTitle}</div><p class="intro-copy">${resultDescription}</p>${winReward}<div class="mission"><div class="mission-symbol">${won ? '✓' : '↻'}</div><div><b>${won ? 'ROUND WON' : 'ROUND LOST'}</b><small>${resultSummary} Wallet: $${cash}.</small></div></div><button class="start-button" id="playAgainButton">PLAY AGAIN&nbsp; →</button><button class="secondary-button" id="resultMenuButton">MAIN MENU</button>`;
+				document.getElementById('resultPanel').hidden = false;
+			}
+
+			function startGame() {
+				document.getElementById('introPanel').classList.remove('menu-home');
+				selectRandomMap();
+				roundRole = Math.random() * 100 < killerChance ? 'killer' : 'survivor';
+				generators.forEach(generator => { generator.progress = 0; generator.completed = false; });
+				player.x = (roundRole === 'killer' ? 13.5 : 2.2) * tile;
+				player.y = roundRole === 'killer' ? 8.5 * tile : 9 * tile;
+				player.stamina = 100;
+				hunter.x = (roundRole === 'killer' ? 2.2 : 13.5) * tile;
+				hunter.y = roundRole === 'killer' ? 9 * tile : 8.5 * tile;
+				health = 100; healthFill.style.width = '100%'; healthValue.textContent = '100 / 100 HP';
+				healthLabel.textContent = roundRole === 'killer' ? 'CPU SURVIVOR' : 'HEALTH';
+				staminaLabel.textContent = 'STAMINA';
+				mapName.textContent = maps[currentMapIndex].name;
+				const occupiedSpawns = [player];
+				if (roundRole === 'survivor') occupiedSpawns.push(hunter);
+				cpuSurvivors.forEach((survivor, index) => {
+					survivor.health = 100;
+					survivor.role = rollCpuRole();
+					survivor.patrolIndex = index % generators.length;
+					survivor.path = [];
+					survivor.pathIndex = 0;
+					survivor.pathTimer = 0;
+					survivor.stunCooldown = 0;
+					survivor.blockCooldown = 0;
+					survivor.blockRemaining = 0;
+					survivor.punchReady = false;
+					survivor.trapCooldown = 0;
+					survivor.trap = null;
+					survivor.healCooldown = 0;
+					findFreeSpawn(survivor, (4 + index * 2) * tile, 9 * tile, occupiedSpawns);
+					occupiedSpawns.push(survivor);
+				});
+				hunter.alert = 0;
+				hunter.stamina = 100;
+				hunter.sprinting = false;
+				hunter.path = []; hunter.pathIndex = 0; hunter.pathTimer = 0;
+				remainingTime = 60; timerDisplay.textContent = '01:00'; generatorCount.textContent = '0 / 3'; cashDisplay.textContent = `$${cash}`;
+				runEarnings = 0; hunterStunRemaining = 0; playerStunRemaining = 0; stunCooldownRemaining = 0; doctorHealCooldownRemaining = 0; trapCooldownRemaining = 0; activeTrap = null; blockRemaining = 0;
+				blockCooldownRemaining = 0; blockHasBlockedAttack = false; blockPunchReady = false;
+				generatorToast.classList.remove('show'); toastTimer = 0; actionDown = false;
+				roleAbilityButton.classList.toggle('show', roundRole === 'survivor' && ['sword', 'block', 'doctor', 'trapper'].includes(equippedRole));
+				roleAbilityButton.textContent = equippedRole === 'block' ? 'BLOCK' : equippedRole === 'doctor' ? 'HEAL' : equippedRole === 'trapper' ? 'TRAP' : 'SWORD';
+				roleAbilityButton.setAttribute('aria-label', equippedRole === 'block' ? 'Block for two seconds' : equippedRole === 'doctor' ? 'Heal an adjacent CPU survivor' : equippedRole === 'trapper' ? 'Place a trap' : 'Stun killer');
+				const actionButton = document.getElementById('actionButton');
+				actionButton.textContent = roundRole === 'killer' ? 'AUTO' : 'USE';
+				actionButton.setAttribute('aria-label', roundRole === 'killer' ? 'Attacks automatically near a survivor' : 'Repair generator or punch');
+				updateAbilityHud();
+				ended = false; running = false; gameTime = 0;
+				overlay.classList.add('hidden'); hud.classList.add('active');
+				if (roundRole === 'killer') {
+					killerIntro.classList.add('active');
+					killerIntroTimeout = window.setTimeout(beginHunt, 4000);
+				} else beginHunt();
+			}
+
+			function beginHunt() {
+				window.clearTimeout(killerIntroTimeout);
+				killerIntroTimeout = 0;
+				killerIntro.classList.remove('active');
+				running = true;
+				lastTime = performance.now();
+			}
+
+			function showMenuPanel(panelId) {
+				document.querySelectorAll('.menu-panel').forEach(panel => { panel.hidden = panel.id !== panelId; });
+				document.getElementById('resultPanel').hidden = true;
+				document.getElementById('introPanel').classList.toggle('menu-home', panelId === 'mainMenuPanel');
+				document.getElementById('overlay').classList.remove('hidden');
+				refreshMenuState();
+			}
+
+			function frame(now) {
+				const dt = Math.min((now - lastTime) / 1000 || 0, .04);
+				lastTime = now; update(dt); draw(); requestAnimationFrame(frame);
+			}
+
+			document.getElementById('introPanel').addEventListener('click', event => {
+				const button = event.target.closest('button');
+				if (!button) return;
+				if (button.id === 'startButton') startGame();
+				else if (button.id === 'settingsButton') showMenuPanel('settingsPanel');
+				else if (button.id === 'shopButton') showMenuPanel('shopPanel');
+				else if (button.id === 'gearButton') showMenuPanel('gearPanel');
+				else if (['backButton', 'shopBackButton', 'gearBackButton'].includes(button.id)) showMenuPanel('mainMenuPanel');
+				else if (button.id === 'buySwordButton') {
+					if (ownedRoles.has('sword')) return;
+					if (cash < swordPrice) {
+						document.getElementById('shopMessage').textContent = `Need $${swordPrice - cash} more. Complete generators to earn cash.`;
+						return;
+					}
+					cash -= swordPrice;
+					ownedRoles.add('sword');
+					refreshMenuState();
+					document.getElementById('shopMessage').textContent = 'Sword role unlocked! Equip it in Gear.';
+				} else if (button.id === 'buyBlockButton') {
+					if (ownedRoles.has('block')) return;
+					if (cash < blockPrice) {
+						document.getElementById('blockShopMessage').textContent = `Need $${blockPrice - cash} more. Complete generators to earn cash.`;
+						return;
+					}
+					cash -= blockPrice;
+					ownedRoles.add('block');
+					refreshMenuState();
+					document.getElementById('blockShopMessage').textContent = 'Block role unlocked! Equip it in Gear.';
+				} else if (button.id === 'buyDoctorButton') {
+					if (ownedRoles.has('doctor')) return;
+					if (cash < doctorPrice) {
+						document.getElementById('doctorShopMessage').textContent = `Need $${doctorPrice - cash} more. Complete generators to earn cash.`;
+						return;
+					}
+					cash -= doctorPrice;
+					ownedRoles.add('doctor');
+					refreshMenuState();
+					document.getElementById('doctorShopMessage').textContent = 'Doctor role unlocked! Equip it in Gear.';
+				} else if (button.id === 'buyTrapperButton') {
+					if (ownedRoles.has('trapper')) return;
+					if (cash < trapperPrice) {
+						document.getElementById('trapperShopMessage').textContent = `Need $${trapperPrice - cash} more. Complete generators to earn cash.`;
+						return;
+					}
+					cash -= trapperPrice;
+					ownedRoles.add('trapper');
+					refreshMenuState();
+					document.getElementById('trapperShopMessage').textContent = 'Trapper role unlocked! Equip it in Gear.';
+				} else if (button.id === 'equipNormalButton') {
+					equippedRole = 'normal';
+					refreshMenuState();
+				} else if (button.id === 'equipSwordButton') {
+					if (ownedRoles.has('sword')) {
+						equippedRole = 'sword';
+						refreshMenuState();
+					} else showMenuPanel('shopPanel');
+				} else if (button.id === 'equipBlockButton') {
+					if (ownedRoles.has('block')) {
+						equippedRole = 'block';
+						refreshMenuState();
+					} else showMenuPanel('shopPanel');
+				} else if (button.id === 'equipDoctorButton') {
+					if (ownedRoles.has('doctor')) {
+						equippedRole = 'doctor';
+						refreshMenuState();
+					} else showMenuPanel('shopPanel');
+				} else if (button.id === 'equipTrapperButton') {
+					if (ownedRoles.has('trapper')) {
+						equippedRole = 'trapper';
+						refreshMenuState();
+					} else showMenuPanel('shopPanel');
+				} else if (button.id === 'playAgainButton') startGame();
+				else if (button.id === 'resultMenuButton') {
+					hud.classList.remove('active');
+					showMenuPanel('mainMenuPanel');
+				}
+			});
+			document.getElementById('beginHuntButton').addEventListener('click', beginHunt);
+			window.addEventListener('resize', resize);
+			window.addEventListener('keydown', event => {
+				const key = event.key.toLowerCase();
+				if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) event.preventDefault();
+				keys.add(key);
+				if (key === 'e') {
+					if (!event.repeat && equippedRole === 'block' && !nearestGenerator()) attemptRoleStun('block');
+					actionDown = true;
+				}
+				if (key === 'q' && equippedRole === 'block' && !event.repeat) activateBlock();
+				else if (key === 'q' && equippedRole === 'sword' && !event.repeat) attemptRoleStun('sword');
+				else if (key === 'q' && equippedRole === 'doctor' && !event.repeat) attemptDoctorHeal();
+				else if (key === 'q' && equippedRole === 'trapper' && !event.repeat) placeTrap();
+			});
+			window.addEventListener('keyup', event => {
+				const key = event.key.toLowerCase(); keys.delete(key);
+				if (key === 'e') actionDown = false;
+			});
+			window.addEventListener('blur', () => { keys.clear(); actionDown = false; movePointer.active = false; });
+			const actionButton = document.getElementById('actionButton');
+			actionButton.addEventListener('pointerdown', event => {
+				event.preventDefault();
+				if (equippedRole === 'block' && !nearestGenerator()) attemptRoleStun('block');
+				actionDown = true;
+				actionButton.setPointerCapture(event.pointerId);
+			});
+			for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) actionButton.addEventListener(name, () => { actionDown = false; });
+			roleAbilityButton.addEventListener('pointerdown', event => {
+				event.preventDefault();
+				if (equippedRole === 'block') activateBlock();
+				else if (equippedRole === 'doctor') attemptDoctorHeal();
+				else if (equippedRole === 'trapper') placeTrap();
+				else attemptRoleStun('sword');
+			});
+			const moveButton = document.getElementById('moveButton');
+			moveButton.addEventListener('pointerdown', event => {
+				event.preventDefault(); movePointer.active = true; movePointer.originX = event.clientX; movePointer.originY = event.clientY;
+				moveButton.setPointerCapture(event.pointerId);
+			});
+			moveButton.addEventListener('pointermove', event => {
+				if (!movePointer.active) return;
+				movePointer.x = Math.max(-1, Math.min(1, (event.clientX - movePointer.originX) / 35));
+				movePointer.y = Math.max(-1, Math.min(1, (event.clientY - movePointer.originY) / 35));
+			});
+			for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) moveButton.addEventListener(name, () => { movePointer.active = false; movePointer.x = 0; movePointer.y = 0; });
+
+			refreshMenuState();
+			resize(); requestAnimationFrame(frame);
+		})();
+	</script>
+</body>
+</html>
